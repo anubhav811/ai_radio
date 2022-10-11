@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         title: "Ai Radio",
-        theme: ThemeData(
+        theme: ThemeData( 
           fontFamily: GoogleFonts.poppins().fontFamily,
         ),
         home: HomePage());

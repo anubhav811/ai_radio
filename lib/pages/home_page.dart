@@ -1,4 +1,5 @@
 import 'package:ai_radio/utils/utils.dart';
+import 'package:alan_voice/alan_voice.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -16,14 +17,14 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State {
   List<MyRadio> radios = [];
   bool isPlaying = false;
-  late MyRadio _selectedRadio;
-  late Color _selectedColor;
-
+  MyRadio? _selectedRadio;
+  Color? _selectedColor;
   final AudioPlayer audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
+    setUpAlan();
     fetchRadios();
 
     audioPlayer.onPlayerStateChanged.listen((event) {
@@ -36,11 +37,21 @@ class HomePageState extends State {
     });
   }
 
-  _playMusic(String url) {
-    UrlSource urlSource = UrlSource(url);
-    audioPlayer.play(urlSource);
-    _selectedRadio = radios.firstWhere((element) => element.url == url);
-    setState(() {});
+  setUpAlan() {
+    AlanVoice.addButton(
+        "487066de63d893e1246ea64f97594c1f2e956eca572e1d8b807a3e2338fdd0dc/stage",
+        buttonAlign: AlanVoice.BUTTON_ALIGN_LEFT);
+    AlanVoice.callbacks.add((command) => handleCommand(command.data));
+  }
+
+  handleCommand(Map<String, dynamic> response) {
+    switch (response["command"]) {
+      case "play":
+        _playMusic(_selectedRadio.url);
+        break;
+      default:
+        break;
+    }
   }
 
   void fetchRadios() async {
@@ -50,6 +61,16 @@ class HomePageState extends State {
     radios = List.from(radiosData)
         .map<MyRadio>((item) => MyRadio.fromMap(item))
         .toList();
+    _selectedRadio = radios[0];
+    _selectedColor = Color(int.tryParse(_selectedRadio.color));
+    setState(() {});
+  }
+
+  _playMusic(String url) {
+    UrlSource urlSource = UrlSource(url);
+    audioPlayer.play(urlSource);
+    _selectedRadio = radios.firstWhere((element) => element.url == url);
+    setState(() {});
   }
 
   @override
@@ -58,38 +79,44 @@ class HomePageState extends State {
       drawer: const Drawer(),
       body: Stack(
         fit: StackFit.expand,
+        // ignore: sort_child_properties_last
         children: [
           VxAnimatedBox()
               .size(context.screenWidth, context.screenHeight)
               .withGradient(
-                const LinearGradient(
+                LinearGradient(
                   colors: [
-                    Color.fromARGB(255, 18, 47, 61),
-                    Color.fromARGB(255, 18, 47, 61)
+                    AIColors.primaryColor2,
+                    _selectedColor ?? AIColors.primaryColor1,
                   ],
-                  // begin: Alignment.topLeft,
-                  // end: Alignment.bottomRight,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               )
               .make(),
           AppBar(
             title: "Radio".text.xl4.bold.white.make().shimmer(
-                  primaryColor: Color.fromARGB(255, 201, 201, 201),
-                  secondaryColor: Vx.white,
-                ),
+                primaryColor: Vx.purple300, secondaryColor: Colors.white),
             backgroundColor: Colors.transparent,
             centerTitle: true,
             elevation: 0,
           ).h(100).p16(),
+          // ignore: unnecessary_null_comparison
           radios != null
               ? VxSwiper.builder(
                   itemCount: radios.length,
                   aspectRatio: 1,
+                  onPageChanged: (index) {
+                    final colorHex = radios[index].color;
+                    _selectedColor = Color(int.parse(colorHex));
+                    setState(() {});
+                  },
                   enlargeCenterPage: true,
                   itemBuilder: (context, index) {
                     final rad = radios[index];
                     return VxBox(
-                      child: ZStack([
+                            child: ZStack(
+                      [
                         Positioned(
                           top: 5.0,
                           right: 5.0,
@@ -119,50 +146,64 @@ class HomePageState extends State {
                           ),
                         ),
                         Align(
-                          alignment: Alignment.center,
-                          child: [
-                            if (isPlaying)
-                              "Playing Now - ${_selectedRadio.name} FM"
-                                  .text
-                                  .white
-                                  .makeCentered(),
-                            Icon(
-                              isPlaying
-                                  ? CupertinoIcons.stop_circle
-                                  : CupertinoIcons.play_circle,
-                              color: Colors.white,
-                            ).onInkTap(() {
-                              if (isPlaying) {
-                                audioPlayer.stop();
-                              } else {
-                                _playMusic(rad.url);
-                              }
-                            }),
-                            10.heightBox,
-                            "Double tap to play".text.gray300.make(),
-                          ].vStack(),
-                        ),
-                      ]),
-                    )
+                            alignment: Alignment.center,
+                            child: [
+                              const Icon(
+                                CupertinoIcons.play_circle,
+                                color: Colors.white,
+                              ),
+                              10.heightBox,
+                              "Double tap to play".text.gray300.make(),
+                            ].vStack())
+                      ],
+                    ))
                         .clip(Clip.antiAlias)
-                        .bgImage(DecorationImage(
-                          image: NetworkImage(rad.image),
-                          fit: BoxFit.cover,
-                          colorFilter: ColorFilter.mode(
-                              Colors.black.withOpacity(0.3), BlendMode.darken),
-                        ))
+                        .bgImage(
+                          DecorationImage(
+                              image: NetworkImage(rad.image),
+                              fit: BoxFit.cover,
+                              colorFilter: ColorFilter.mode(
+                                  Colors.black.withOpacity(0.3),
+                                  BlendMode.darken)),
+                        )
                         .border(color: Colors.black, width: 2.0)
+                        .withRounded(value: 0.0)
                         .make()
-                        .p12()
                         .onInkDoubleTap(() {
                       _playMusic(rad.url);
-                    });
+                    }).px1();
                   },
-                )
+                ).centered()
               : const Center(
-                  child: CircularProgressIndicator(),
-                ).centered(),
+                  child: CircularProgressIndicator(
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: [
+              if (isPlaying)
+                "Playing Now - ${_selectedRadio.name} FM"
+                    .text
+                    .white
+                    .makeCentered(),
+              Icon(
+                isPlaying
+                    ? CupertinoIcons.stop_circle
+                    : CupertinoIcons.play_circle,
+                color: Colors.white,
+                size: 50.0,
+              ).onInkTap(() {
+                if (isPlaying) {
+                  audioPlayer.stop();
+                } else {
+                  _playMusic(_selectedRadio.url);
+                }
+              })
+            ].vStack(),
+          ).pOnly(bottom: context.percentHeight * 12)
         ],
+        clipBehavior: Clip.antiAlias,
       ),
     );
   }
