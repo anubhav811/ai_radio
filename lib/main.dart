@@ -13,8 +13,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: "Ai Radio",
-        theme: ThemeData( 
+        title: "Radio",
+        theme: ThemeData(
           fontFamily: GoogleFonts.poppins().fontFamily,
         ),
         home: HomePage());
